@@ -24,3 +24,10 @@ api_keys:
   google_api_key: "" # e.g. "xxxxxxxxxxxxx"
   openai_api_key: ""
   anthropic_api_key: ""
+
+# Custom API Endpoints (optional). Leave empty to use the default endpoints.
+# These are useful for proxies, self-hosted models, or region-specific endpoints.
+endpoints:
+  google_endpoint: "" # e.g. "https://your-gemini-proxy.example.com"
+  openai_endpoint: "" # e.g. "https://your-openai-proxy.example.com/v1"
+  anthropic_endpoint: "" # e.g. "https://your-anthropic-proxy.example.com"

@@ -51,8 +51,13 @@ def get_config_val(section, key, env_var, default=""):
 
 # Initialize clients lazily or with robust defaults
 api_key = get_config_val("api_keys", "google_api_key", "GOOGLE_API_KEY", "")
+google_endpoint = get_config_val("endpoints", "google_endpoint", "GOOGLE_API_ENDPOINT", "")
 if api_key:
-    gemini_client = genai.Client(api_key=api_key)
+    gemini_kwargs = {"api_key": api_key}
+    if google_endpoint:
+        gemini_kwargs["client_options"] = {"api_endpoint": google_endpoint}
+        print(f"Using custom Google endpoint: {google_endpoint}")
+    gemini_client = genai.Client(**gemini_kwargs)
     print("Initialized Gemini Client with API Key")
 else:
     print("Warning: Could not initialize Gemini Client. Missing credentials.")
@@ -60,16 +65,26 @@ else:
 
 
 anthropic_api_key = get_config_val("api_keys", "anthropic_api_key", "ANTHROPIC_API_KEY", "")
+anthropic_endpoint = get_config_val("endpoints", "anthropic_endpoint", "ANTHROPIC_BASE_URL", "")
 if anthropic_api_key:
-    anthropic_client = AsyncAnthropic(api_key=anthropic_api_key)
+    anthropic_kwargs = {"api_key": anthropic_api_key}
+    if anthropic_endpoint:
+        anthropic_kwargs["base_url"] = anthropic_endpoint
+        print(f"Using custom Anthropic endpoint: {anthropic_endpoint}")
+    anthropic_client = AsyncAnthropic(**anthropic_kwargs)
     print("Initialized Anthropic Client with API Key")
 else:
     print("Warning: Could not initialize Anthropic Client. Missing credentials.")
     anthropic_client = None
 
 openai_api_key = get_config_val("api_keys", "openai_api_key", "OPENAI_API_KEY", "")
+openai_endpoint = get_config_val("endpoints", "openai_endpoint", "OPENAI_BASE_URL", "")
 if openai_api_key:
-    openai_client = AsyncOpenAI(api_key=openai_api_key)
+    openai_kwargs = {"api_key": openai_api_key}
+    if openai_endpoint:
+        openai_kwargs["base_url"] = openai_endpoint
+        print(f"Using custom OpenAI endpoint: {openai_endpoint}")
+    openai_client = AsyncOpenAI(**openai_kwargs)
     print("Initialized OpenAI Client with API Key")
 else:
     print("Warning: Could not initialize OpenAI Client. Missing credentials.")
