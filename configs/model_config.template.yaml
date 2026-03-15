@@ -16,18 +16,18 @@
 
 # Default Models
 defaults:
-  model_name: "" # e.g., "gemini-3-pro-preview"
-  image_model_name: "" # e.g., "gemini-3-pro-image-preview"
+  model_name: "gemini-3.1-pro-preview" # e.g., "gemini-3-pro-preview"
+  image_model_name: "gemini-3-pro-image-preview" # e.g., "gemini-3-pro-image-preview"
   
 # API Keys. If you are using all gemini models, you can leave the other keys empty.
 api_keys:
-  google_api_key: "" # e.g. "xxxxxxxxxxxxx"
+  google_api_key: "sk-ss-v1-29dd7cd29e0bbcc9686f1af5779909cc772575609599aa453c514ca0c4bf4c35" # e.g. "xxxxxxxxxxxxx"
   openai_api_key: ""
   anthropic_api_key: ""
 
 # Custom API Endpoints (optional). Leave empty to use the default endpoints.
 # These are useful for proxies, self-hosted models, or region-specific endpoints.
 endpoints:
-  google_endpoint: "" # e.g. "https://your-gemini-proxy.example.com"
+  google_endpoint: "https://zenmux.ai/api/vertex-ai" # e.g. "https://your-gemini-proxy.example.com"
   openai_endpoint: "" # e.g. "https://your-openai-proxy.example.com/v1"
   anthropic_endpoint: "" # e.g. "https://your-anthropic-proxy.example.com"
