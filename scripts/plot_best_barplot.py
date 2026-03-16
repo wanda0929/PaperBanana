@@ -52,8 +52,9 @@ PROMPT_MODE_LABELS = {
     "normal_simple": "Normal Simple",
 }
 
-# Short x-axis labels for the 13 tasks (single-line for compact layout)
+# Short x-axis labels for the 16 tasks (single-line for compact layout)
 TASK_DISPLAY = {
+    "cd_driving": "CD-Drive",
     "control_crab_2qubit_interaction": "CRAB-2Q",
     "control_grape_cphase": "GRAPE-CP",
     "control_grape_toffoli": "GRAPE-Tof",
@@ -66,6 +67,8 @@ TASK_DISPLAY = {
     "lindbladian": "Lindbl.",
     "qutip_single_qubit": "QuTiP-SQ",
     "single_qubit_gate": "SQG",
+    "symplectic_oscillator": "Sympl-Osc",
+    "transmon_xgate": "Transmon-X",
     "two_spin_transfer": "2-Spin",
 }
 

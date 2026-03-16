@@ -22,6 +22,7 @@ DATA_DIR = (
 OUTPUT_DIR = pathlib.Path(__file__).resolve().parents[1] / "results"
 
 TASKS = {
+    "CD Driving": DATA_DIR / "cd_driving" / "final_agg_by_noise_model.csv",
     "CRAB 2-Qubit Interaction": DATA_DIR
     / "control_crab_2qubit_interaction"
     / "final_agg_by_noise_model.csv",
@@ -52,6 +53,12 @@ TASKS = {
     "Single Qubit Gate": DATA_DIR
     / "Single_qubit_gate"
     / "final_agg_by_noise_model_single_qubit_gate.csv",
+    "Symplectic Oscillator": DATA_DIR
+    / "symplectic_oscillator"
+    / "final_agg_by_noise_model_symplectic_oscillator.csv",
+    "Transmon X-Gate": DATA_DIR
+    / "transmon_xgate"
+    / "final_agg_by_noise_model_transmon_xgate.csv",
     "Two-Spin Transfer": DATA_DIR
     / "two_spin_transfer"
     / "final_agg_by_noise_model_two_spin_transfer.csv",
@@ -172,7 +179,7 @@ def main():
         }
     )
 
-    fig, axes = plt.subplots(len(TASKS), 1, figsize=(7, 11), constrained_layout=True)
+    fig, axes = plt.subplots(len(TASKS), 1, figsize=(7, 14), constrained_layout=True)
     fig.set_constrained_layout_pads(hspace=0.03, h_pad=0.02, w_pad=0.02)
 
     all_models_in_fig = set()

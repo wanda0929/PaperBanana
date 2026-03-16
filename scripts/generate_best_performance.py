@@ -8,7 +8,7 @@ Output columns:
     best_of_runs_fidelity, mean_fidelity,
     best_run_tokens, best_run_k_reach_tol
 
-Total expected rows: 13 tasks × 3 noise levels × 3 prompt modes = 117
+Total expected rows: 16 tasks × 3 noise levels × 3 prompt modes = 144
 
 Output: ALL_IN_AVERAGE/Best_performance.csv
 """
@@ -28,11 +28,10 @@ OUT_DIR = DATA_DIR / "ALL_IN_AVERAGE"
 OUT_FILE = OUT_DIR / "Best_performance.csv"
 
 # ---------------------------------------------------------------------------
-# All 13 task CSVs
+# All 16 task CSVs
 # ---------------------------------------------------------------------------
 TASK_CSVS = [
-    DATA_DIR / "Dicke" / "final_agg_by_noise_model_dicke.csv",
-    DATA_DIR / "Single_qubit_gate" / "final_agg_by_noise_model_single_qubit_gate.csv",
+    DATA_DIR / "cd_driving" / "final_agg_by_noise_model.csv",
     DATA_DIR / "control_crab_2qubit_interaction" / "final_agg_by_noise_model.csv",
     DATA_DIR / "control_grape_cphase" / "final_agg_by_noise_model.csv",
     DATA_DIR
@@ -40,11 +39,17 @@ TASK_CSVS = [
     / "final_agg_by_noise_model_control_grape_toffoli.csv",
     DATA_DIR / "crab_qft" / "final_agg_by_noise_model_crab_qft.csv",
     DATA_DIR / "decoherence_suppression" / "final_agg_by_noise_model.csv",
+    DATA_DIR / "Dicke" / "final_agg_by_noise_model_dicke.csv",
     DATA_DIR / "drag_pulse" / "final_agg_by_noise_model_drag_pulse.csv",
     DATA_DIR / "lambda_transfer" / "final_agg_by_noise_model_lambda_transfer.csv",
     DATA_DIR / "landau_zener_csv_datas" / "final_agg_by_noise_model.csv",
     DATA_DIR / "lindbladian" / "final_agg_by_noise_model.csv",
     DATA_DIR / "qutip_single_qubit" / "final_agg_by_noise_model_qutip_single_qubit.csv",
+    DATA_DIR / "Single_qubit_gate" / "final_agg_by_noise_model_single_qubit_gate.csv",
+    DATA_DIR
+    / "symplectic_oscillator"
+    / "final_agg_by_noise_model_symplectic_oscillator.csv",
+    DATA_DIR / "transmon_xgate" / "final_agg_by_noise_model_transmon_xgate.csv",
     DATA_DIR / "two_spin_transfer" / "final_agg_by_noise_model_two_spin_transfer.csv",
 ]
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Aggregate all task CSVs across 13 tasks, normalise model names, and export
+Aggregate all task CSVs across 16 tasks, normalise model names, and export
 average_over_all.csv to ALL_IN_AVERAGE/.
 
 Output columns (per noise_level × prompt_mode × model combination):
@@ -24,11 +24,10 @@ OUT_DIR = DATA_DIR / "ALL_IN_AVERAGE"
 OUT_FILE = OUT_DIR / "average_over_all.csv"
 
 # ---------------------------------------------------------------------------
-# All 13 task CSVs
+# All 16 task CSVs
 # ---------------------------------------------------------------------------
 TASK_CSVS = [
-    DATA_DIR / "Dicke" / "final_agg_by_noise_model_dicke.csv",
-    DATA_DIR / "Single_qubit_gate" / "final_agg_by_noise_model_single_qubit_gate.csv",
+    DATA_DIR / "cd_driving" / "final_agg_by_noise_model.csv",
     DATA_DIR / "control_crab_2qubit_interaction" / "final_agg_by_noise_model.csv",
     DATA_DIR / "control_grape_cphase" / "final_agg_by_noise_model.csv",
     DATA_DIR
@@ -36,11 +35,17 @@ TASK_CSVS = [
     / "final_agg_by_noise_model_control_grape_toffoli.csv",
     DATA_DIR / "crab_qft" / "final_agg_by_noise_model_crab_qft.csv",
     DATA_DIR / "decoherence_suppression" / "final_agg_by_noise_model.csv",
+    DATA_DIR / "Dicke" / "final_agg_by_noise_model_dicke.csv",
     DATA_DIR / "drag_pulse" / "final_agg_by_noise_model_drag_pulse.csv",
     DATA_DIR / "lambda_transfer" / "final_agg_by_noise_model_lambda_transfer.csv",
     DATA_DIR / "landau_zener_csv_datas" / "final_agg_by_noise_model.csv",
     DATA_DIR / "lindbladian" / "final_agg_by_noise_model.csv",
     DATA_DIR / "qutip_single_qubit" / "final_agg_by_noise_model_qutip_single_qubit.csv",
+    DATA_DIR / "Single_qubit_gate" / "final_agg_by_noise_model_single_qubit_gate.csv",
+    DATA_DIR
+    / "symplectic_oscillator"
+    / "final_agg_by_noise_model_symplectic_oscillator.csv",
+    DATA_DIR / "transmon_xgate" / "final_agg_by_noise_model_transmon_xgate.csv",
     DATA_DIR / "two_spin_transfer" / "final_agg_by_noise_model_two_spin_transfer.csv",
 ]
 
