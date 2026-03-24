@@ -45,4 +45,4 @@ fi
 
 # Run Streamlit
 echo "Starting Streamlit..."
-streamlit run demo.py --server.port 8501 --server.address 0.0.0.0
+uv run streamlit run demo.py --server.port 8501 --server.address 0.0.0.0

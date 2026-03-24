@@ -35,61 +35,148 @@ import os
 
 import yaml
 from pathlib import Path
+from threading import Lock
 
 # Load config
 config_path = Path(__file__).parent.parent / "configs" / "model_config.yaml"
-model_config = {}
-if config_path.exists():
-    with open(config_path, "r") as f:
-        model_config = yaml.safe_load(f) or {}
+
+
+def _load_model_config() -> Dict[str, Any]:
+    if not config_path.exists():
+        return {}
+
+    with open(config_path, "r", encoding="utf-8") as f:
+        return yaml.safe_load(f) or {}
+
 
 def get_config_val(section, key, env_var, default=""):
     val = os.getenv(env_var)
-    if not val and section in model_config:
-        val = model_config[section].get(key)
+    if not val:
+        model_config = _load_model_config()
+        if section in model_config:
+            val = model_config[section].get(key)
     return val or default
 
-# Initialize clients lazily or with robust defaults
-api_key = get_config_val("api_keys", "google_api_key", "GOOGLE_API_KEY", "")
-google_endpoint = get_config_val("endpoints", "google_endpoint", "GOOGLE_API_ENDPOINT", "")
-if api_key:
-    gemini_kwargs = {"api_key": api_key}
-    if google_endpoint:
-        gemini_kwargs["client_options"] = {"api_endpoint": google_endpoint}
-        print(f"Using custom Google endpoint: {google_endpoint}")
-    gemini_client = genai.Client(**gemini_kwargs)
-    print("Initialized Gemini Client with API Key")
-else:
-    print("Warning: Could not initialize Gemini Client. Missing credentials.")
-    gemini_client = None
+
+gemini_client = None
+_gemini_client_signature = None
+_gemini_client_lock = Lock()
+
+anthropic_client = None
+_anthropic_client_signature = None
+_anthropic_client_lock = Lock()
+
+openai_client = None
+_openai_client_signature = None
+_openai_client_lock = Lock()
 
 
-anthropic_api_key = get_config_val("api_keys", "anthropic_api_key", "ANTHROPIC_API_KEY", "")
-anthropic_endpoint = get_config_val("endpoints", "anthropic_endpoint", "ANTHROPIC_BASE_URL", "")
-if anthropic_api_key:
-    anthropic_kwargs = {"api_key": anthropic_api_key}
-    if anthropic_endpoint:
-        anthropic_kwargs["base_url"] = anthropic_endpoint
-        print(f"Using custom Anthropic endpoint: {anthropic_endpoint}")
-    anthropic_client = AsyncAnthropic(**anthropic_kwargs)
-    print("Initialized Anthropic Client with API Key")
-else:
-    print("Warning: Could not initialize Anthropic Client. Missing credentials.")
-    anthropic_client = None
+def _is_vertex_proxy_endpoint(endpoint: str) -> bool:
+    return bool(endpoint) and "vertex" in endpoint.lower()
 
-openai_api_key = get_config_val("api_keys", "openai_api_key", "OPENAI_API_KEY", "")
-openai_endpoint = get_config_val("endpoints", "openai_endpoint", "OPENAI_BASE_URL", "")
-if openai_api_key:
-    openai_kwargs = {"api_key": openai_api_key}
-    if openai_endpoint:
-        openai_kwargs["base_url"] = openai_endpoint
-        print(f"Using custom OpenAI endpoint: {openai_endpoint}")
-    openai_client = AsyncOpenAI(**openai_kwargs)
-    print("Initialized OpenAI Client with API Key")
-else:
-    print("Warning: Could not initialize OpenAI Client. Missing credentials.")
-    openai_client = None
 
+def _normalize_gemini_model_name(model_name: str) -> str:
+    if not model_name:
+        return model_name
+
+    google_endpoint = get_config_val(
+        "endpoints", "google_endpoint", "GOOGLE_API_ENDPOINT", ""
+    )
+    if _is_vertex_proxy_endpoint(google_endpoint) and "/" not in model_name:
+        return f"google/{model_name}"
+
+    return model_name
+
+
+def _get_gemini_client():
+    global gemini_client, _gemini_client_signature
+
+    api_key = get_config_val("api_keys", "google_api_key", "GOOGLE_API_KEY", "")
+    google_endpoint = get_config_val(
+        "endpoints", "google_endpoint", "GOOGLE_API_ENDPOINT", ""
+    )
+    signature = (api_key, google_endpoint)
+
+    with _gemini_client_lock:
+        if gemini_client is not None and _gemini_client_signature == signature:
+            return gemini_client
+
+        if not api_key:
+            gemini_client = None
+            _gemini_client_signature = None
+            return None
+
+        gemini_kwargs = {"api_key": api_key}
+        if google_endpoint:
+            if _is_vertex_proxy_endpoint(google_endpoint):
+                gemini_kwargs["vertexai"] = True
+            gemini_kwargs["http_options"] = {"base_url": google_endpoint}
+            if _is_vertex_proxy_endpoint(google_endpoint):
+                gemini_kwargs["http_options"]["api_version"] = "v1"
+            print(f"Using custom Google endpoint: {google_endpoint}")
+
+        gemini_client = genai.Client(**gemini_kwargs)
+        _gemini_client_signature = signature
+        print("Initialized Gemini Client with API Key")
+        return gemini_client
+
+
+def _get_anthropic_client():
+    global anthropic_client, _anthropic_client_signature
+
+    api_key = get_config_val("api_keys", "anthropic_api_key", "ANTHROPIC_API_KEY", "")
+    anthropic_endpoint = get_config_val(
+        "endpoints", "anthropic_endpoint", "ANTHROPIC_BASE_URL", ""
+    )
+    signature = (api_key, anthropic_endpoint)
+
+    with _anthropic_client_lock:
+        if anthropic_client is not None and _anthropic_client_signature == signature:
+            return anthropic_client
+
+        if not api_key:
+            anthropic_client = None
+            _anthropic_client_signature = None
+            return None
+
+        anthropic_kwargs = {"api_key": api_key}
+        if anthropic_endpoint:
+            anthropic_kwargs["base_url"] = anthropic_endpoint
+            print(f"Using custom Anthropic endpoint: {anthropic_endpoint}")
+
+        anthropic_client = AsyncAnthropic(**anthropic_kwargs)
+        _anthropic_client_signature = signature
+        print("Initialized Anthropic Client with API Key")
+        return anthropic_client
+
+
+def _get_openai_client():
+    global openai_client, _openai_client_signature
+
+    api_key = get_config_val("api_keys", "openai_api_key", "OPENAI_API_KEY", "")
+    openai_endpoint = get_config_val(
+        "endpoints", "openai_endpoint", "OPENAI_BASE_URL", ""
+    )
+    signature = (api_key, openai_endpoint)
+
+    with _openai_client_lock:
+        if openai_client is not None and _openai_client_signature == signature:
+            return openai_client
+
+        if not api_key:
+            openai_client = None
+            _openai_client_signature = None
+            return None
+
+        openai_kwargs = {"api_key": api_key}
+        if openai_endpoint:
+            openai_kwargs["base_url"] = openai_endpoint
+            print(f"Using custom OpenAI endpoint: {openai_endpoint}")
+
+        openai_client = AsyncOpenAI(**openai_kwargs)
+        _openai_client_signature = signature
+        print("Initialized OpenAI Client with API Key")
+        return openai_client
 
 
 def _convert_to_gemini_parts(contents: List[Dict[str, Any]]) -> List[types.Part]:
@@ -118,13 +205,15 @@ async def call_gemini_with_retry_async(
     """
     ASYNC: Call Gemini API with asynchronous retry logic.
     """
-    if gemini_client is None:
+    client = _get_gemini_client()
+    if client is None:
         raise RuntimeError(
             "Gemini client was not initialized: missing Google API key. "
             "Please set GOOGLE_API_KEY in environment, or configure api_keys.google_api_key in configs/model_config.yaml."
         )
 
     result_list = []
+    normalized_model_name = _normalize_gemini_model_name(model_name)
     target_candidate_count = config.candidate_count
     # Gemini API max candidate count is 8. We will call multiple times if needed.
     if config.candidate_count > 8:
@@ -133,20 +222,16 @@ async def call_gemini_with_retry_async(
     current_contents = contents
     for attempt in range(max_attempts):
         try:
-            # Use global client
-            client = gemini_client
-
             # Convert generic content list to Gemini's format right before the API call
             gemini_contents = _convert_to_gemini_parts(current_contents)
             response = await client.aio.models.generate_content(
-                model=model_name, contents=gemini_contents, config=config
+                model=normalized_model_name,
+                contents=gemini_contents,
+                config=config,
             )
 
             # If we are using Image Generation models to generate images
-            if (
-                "nanoviz" in model_name
-                or "image" in model_name
-            ):
+            if "nanoviz" in normalized_model_name or "image" in normalized_model_name:
                 raw_response_list = []
                 if not response.candidates or not response.candidates[0].content.parts:
                     print(
@@ -178,12 +263,12 @@ async def call_gemini_with_retry_async(
 
         except Exception as e:
             context_msg = f" for {error_context}" if error_context else ""
-            
+
             # Exponential backoff (capped at 30s)
-            current_delay = min(retry_delay * (2 ** attempt), 30)
-            
+            current_delay = min(retry_delay * (2**attempt), 30)
+
             print(
-                f"Attempt {attempt + 1} for model {model_name} failed{context_msg}: {e}. Retrying in {current_delay} seconds..."
+                f"Attempt {attempt + 1} for model {normalized_model_name} failed{context_msg}: {e}. Retrying in {current_delay} seconds..."
             )
 
             if attempt < max_attempts - 1:
@@ -195,6 +280,7 @@ async def call_gemini_with_retry_async(
     if len(result_list) < target_candidate_count:
         result_list.extend(["Error"] * (target_candidate_count - len(result_list)))
     return result_list
+
 
 def _convert_to_claude_format(contents: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     """
@@ -215,14 +301,14 @@ def _convert_to_claude_format(contents: List[Dict[str, Any]]) -> List[Dict[str, 
 def _convert_to_openai_format(contents: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     """
     Converts the generic content list (Claude format) to OpenAI's API format.
-    
+
     Claude format:
     [
         {"type": "text", "text": "some text"},
         {"type": "image", "source": {"type": "base64", "media_type": "image/jpeg", "data": "..."}},
         ...
     ]
-    
+
     OpenAI format:
     [
         {"type": "text", "text": "some text"},
@@ -241,10 +327,9 @@ def _convert_to_openai_format(contents: List[Dict[str, Any]]) -> List[Dict[str, 
                 data = source.get("data", "")
                 # OpenAI expects data URL format
                 data_url = f"data:{media_type};base64,{data}"
-                openai_contents.append({
-                    "type": "image_url",
-                    "image_url": {"url": data_url}
-                })
+                openai_contents.append(
+                    {"type": "image_url", "image_url": {"url": data_url}}
+                )
     return openai_contents
 
 
@@ -261,6 +346,13 @@ async def call_claude_with_retry_async(
     candidate_num = config["candidate_num"]
     max_output_tokens = config["max_output_tokens"]
     response_text_list = []
+    client = _get_anthropic_client()
+
+    if client is None:
+        raise RuntimeError(
+            "Anthropic client was not initialized: missing Anthropic API key. "
+            "Please set ANTHROPIC_API_KEY in environment, or configure api_keys.anthropic_api_key in configs/model_config.yaml."
+        )
 
     # --- Preparation Phase ---
     # Convert to the Claude-specific format and perform an initial optimistic resize.
@@ -275,7 +367,7 @@ async def call_claude_with_retry_async(
         try:
             claude_contents = _convert_to_claude_format(current_contents)
             # Attempt to generate the very first candidate.
-            first_response = await anthropic_client.messages.create(
+            first_response = await client.messages.create(
                 model=model_name,
                 max_tokens=max_output_tokens,
                 temperature=temperature,
@@ -310,13 +402,11 @@ async def call_claude_with_retry_async(
         )
         valid_claude_contents = _convert_to_claude_format(current_contents)
         tasks = [
-            anthropic_client.messages.create(
+            client.messages.create(
                 model=model_name,
                 max_tokens=max_output_tokens,
                 temperature=temperature,
-                messages=[
-                    {"role": "user", "content": valid_claude_contents}
-                ],
+                messages=[{"role": "user", "content": valid_claude_contents}],
                 system=system_prompt,
             )
             for _ in range(remaining_candidates)
@@ -332,6 +422,7 @@ async def call_claude_with_retry_async(
 
     return response_text_list
 
+
 async def call_openai_with_retry_async(
     model_name, contents, config, max_attempts=5, retry_delay=30, error_context=""
 ):
@@ -344,6 +435,13 @@ async def call_openai_with_retry_async(
     candidate_num = config["candidate_num"]
     max_completion_tokens = config["max_completion_tokens"]
     response_text_list = []
+    client = _get_openai_client()
+
+    if client is None:
+        raise RuntimeError(
+            "OpenAI client was not initialized: missing OpenAI API key. "
+            "Please set OPENAI_API_KEY in environment, or configure api_keys.openai_api_key in configs/model_config.yaml."
+        )
 
     # --- Preparation Phase ---
     # Convert to the OpenAI-specific format
@@ -356,11 +454,11 @@ async def call_openai_with_retry_async(
         try:
             openai_contents = _convert_to_openai_format(current_contents)
             # Attempt to generate the very first candidate.
-            first_response = await openai_client.chat.completions.create(
+            first_response = await client.chat.completions.create(
                 model=model_name,
                 messages=[
                     {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": openai_contents}
+                    {"role": "user", "content": openai_contents},
                 ],
                 temperature=temperature,
                 max_completion_tokens=max_completion_tokens,
@@ -394,11 +492,11 @@ async def call_openai_with_retry_async(
         )
         valid_openai_contents = _convert_to_openai_format(current_contents)
         tasks = [
-            openai_client.chat.completions.create(
+            client.chat.completions.create(
                 model=model_name,
                 messages=[
                     {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": valid_openai_contents}
+                    {"role": "user", "content": valid_openai_contents},
                 ],
                 temperature=temperature,
                 max_completion_tokens=max_completion_tokens,
@@ -427,7 +525,14 @@ async def call_openai_image_generation_with_retry_async(
     quality = config.get("quality", "high")
     background = config.get("background", "opaque")
     output_format = config.get("output_format", "png")
-    
+    client = _get_openai_client()
+
+    if client is None:
+        raise RuntimeError(
+            "OpenAI client was not initialized: missing OpenAI API key. "
+            "Please set OPENAI_API_KEY in environment, or configure api_keys.openai_api_key in configs/model_config.yaml."
+        )
+
     # Base parameters for all models
     gen_params = {
         "model": model_name,
@@ -435,23 +540,27 @@ async def call_openai_image_generation_with_retry_async(
         "n": 1,
         "size": size,
     }
-    
+
     # Add GPT-Image specific parameters
-    gen_params.update({
-        "quality": quality,
-        "background": background,
-        "output_format": output_format,
-    })
+    gen_params.update(
+        {
+            "quality": quality,
+            "background": background,
+            "output_format": output_format,
+        }
+    )
 
     for attempt in range(max_attempts):
         try:
-            response = await openai_client.images.generate(**gen_params)
-            
+            response = await client.images.generate(**gen_params)
+
             # OpenAI images.generate returns a list of images in response.data
             if response.data and response.data[0].b64_json:
                 return [response.data[0].b64_json]
             else:
-                print(f"[Warning]: Failed to generate image via OpenAI, no data returned.")
+                print(
+                    f"[Warning]: Failed to generate image via OpenAI, no data returned."
+                )
                 if attempt < max_attempts - 1:
                     await asyncio.sleep(retry_delay)
                 continue

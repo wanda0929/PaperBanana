@@ -44,6 +44,8 @@ PaperBanana supports configuring API keys from a YAML configuration file or via 
 
 We recommend duplicate the `configs/model_config.template.yaml` file into `configs/model_config.yaml` to externalize all user configurations. This file is ignored by git to keep your api keys and configurations secret. In `model_config.yaml`, remember to fill in the two model names (`defaults.model_name` and `defaults.image_model_name`) and set at least one API key under `api_keys` (e.g. `google_api_key` for Gemini models).
 
+If you use the default ZenMux Vertex proxy endpoint (`https://zenmux.ai/api/vertex-ai`), PaperBanana will automatically send Gemini requests with Vertex-compatible settings and normalize plain model names such as `gemini-3.1-pro-preview` to `google/gemini-3.1-pro-preview`.
+
 Note that if you need to generate many candidates simultaneously, you will require an API key that supports high concurrency.
 
 ### Step3: Downloading the Dataset
@@ -52,10 +54,9 @@ First download [PaperBananaBench](https://huggingface.co/datasets/dwzhu/PaperBan
 ### Step4: Installing the Environment
 1. We use `uv` to manage Python packages. Please install `uv` following the instructions [here](https://docs.astral.sh/uv/getting-started/installation/).
 
-2. Create and activate a virtual environment
+2. Create a virtual environment
     ```bash
     uv venv # This will create a virtual environment in the current directory, under .venv/
-    source .venv/bin/activate  # or .venv\Scripts\activate on Windows
     ```
 
 3. Install python 3.12
@@ -68,12 +69,14 @@ First download [PaperBananaBench](https://huggingface.co/datasets/dwzhu/PaperBan
     uv pip install -r requirements.txt
     ```
 
+5. Run commands through `uv run` so they use the project's virtual environment. This avoids interpreter mismatches such as `ModuleNotFoundError: No module named 'google.genai'` when `streamlit` or `python` resolves to a system installation instead of `.venv`.
+
 ### Launch PaperBanana
 
 #### Interactive Demo (Streamlit)
 The easiest way to launch PaperBanana is via the interactive Streamlit demo:
 ```bash
-streamlit run demo.py
+uv run streamlit run demo.py
 ```
 
 The web interface provides two main workflows:
@@ -94,10 +97,10 @@ The web interface provides two main workflows:
 You can also run PaperBanana from the command line:
 ```bash
 # Basic usage with default settings
-python main.py
+uv run python main.py
 
 # Advanced usage with custom settings
-python main.py \
+uv run python main.py \
   --dataset_name "PaperBananaBench" \
   --task_name "diagram" \
   --split_name "test" \
@@ -125,11 +128,11 @@ python main.py \
 
 View pipeline evolution and intermediate results:
 ```bash
-streamlit run visualize/show_pipeline_evolution.py
+uv run streamlit run visualize/show_pipeline_evolution.py
 ```
 View evaluation results:
 ```bash
-streamlit run visualize/show_referenced_eval.py
+uv run streamlit run visualize/show_referenced_eval.py
 ```
 
 ## Project Structure
@@ -244,5 +247,3 @@ If you find this repo helpful, please cite our paper as follows:
 This is not an officially supported Google product. This project is not eligible for the [Google Open Source Software Vulnerability Rewards Program](https://bughunters.google.com/open-source-security).
 
 Our goal is simply to benefit the community, so currently we have no plans to use it for commercial purposes. The core methodology was developed during my internship at Google, and patents have been filed for these specific workflows by Google. While this doesn't impact open-source research efforts, it restricts third-party commercial applications using similar logic.
-
-
