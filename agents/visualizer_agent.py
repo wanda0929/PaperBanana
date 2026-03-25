@@ -142,49 +142,56 @@ class VisualizerAgent(BaseAgent):
             prompt_text = cfg["prompt_template"].format(desc=data[desc_key])
             content_list = [{"type": "text", "text": prompt_text}]
             
-            gen_config_args = {
-                "system_instruction": self.system_prompt,
-                "temperature": self.exp_config.temperature,
-                "candidate_count": 1,
-                "max_output_tokens": cfg["max_output_tokens"],
-            }
-            
-            if cfg["use_image_generation"] and "gemini" in self.model_name:
-                # Default to 1:1 if aspect ratio is missing
-                aspect_ratio = "1:1"
-                if "additional_info" in data and "rounded_ratio" in data["additional_info"]:
-                    aspect_ratio = data["additional_info"]["rounded_ratio"]
-
-                gen_config_args["response_modalities"] = ["IMAGE"]
-                gen_config_args["image_config"] = types.ImageConfig(
-                    aspect_ratio=aspect_ratio,
-                    image_size="1k",
-                )
-            
-            if "gemini" in self.model_name:
-                response_list = await generation_utils.call_gemini_with_retry_async(
+            if cfg["use_image_generation"]:
+                gen_config_args = {
+                    "system_instruction": self.system_prompt,
+                    "temperature": self.exp_config.temperature,
+                    "candidate_count": 1,
+                    "max_output_tokens": cfg["max_output_tokens"],
+                }
+                if "gemini" in self.model_name:
+                    aspect_ratio = "1:1"
+                    if "additional_info" in data and "rounded_ratio" in data["additional_info"]:
+                        aspect_ratio = data["additional_info"]["rounded_ratio"]
+                    gen_config_args["response_modalities"] = ["IMAGE"]
+                    gen_config_args["image_config"] = types.ImageConfig(
+                        aspect_ratio=aspect_ratio,
+                        image_size="1k",
+                    )
+                    response_list = await generation_utils.call_gemini_with_retry_async(
+                        model_name=self.model_name,
+                        contents=content_list,
+                        config=types.GenerateContentConfig(**gen_config_args),
+                        max_attempts=5,
+                        retry_delay=30,
+                    )
+                elif "gpt-image" in self.model_name:
+                    image_config = {
+                        "size": "1536x1024",
+                        "quality": "high",
+                        "background": "opaque",
+                        "output_format": "png",
+                    }
+                    response_list = await generation_utils.call_openai_image_generation_with_retry_async(
+                        model_name=self.model_name,
+                        prompt=prompt_text,
+                        config=image_config,
+                        max_attempts=5,
+                        retry_delay=30,
+                    )
+                else:
+                    raise ValueError(f"Unsupported image model: {self.model_name}")
+            else:
+                response_list = await generation_utils.call_text_model_with_retry_async(
                     model_name=self.model_name,
                     contents=content_list,
-                    config=types.GenerateContentConfig(**gen_config_args),
+                    system_prompt=self.system_prompt,
+                    temperature=self.exp_config.temperature,
+                    candidate_count=1,
+                    max_output_tokens=cfg["max_output_tokens"],
                     max_attempts=5,
                     retry_delay=30,
                 )
-            elif "gpt-image" in self.model_name:
-                image_config = {
-                    "size": "1536x1024",
-                    "quality": "high",
-                    "background": "opaque",
-                    "output_format": "png",
-                }
-                response_list = await generation_utils.call_openai_image_generation_with_retry_async(
-                    model_name=self.model_name,
-                    prompt=prompt_text,
-                    config=image_config,
-                    max_attempts=5,
-                    retry_delay=30,
-                )
-            else:
-                raise ValueError(f"Unsupported model: {self.model_name}")
             
             if not response_list or not response_list[0]:
                 continue

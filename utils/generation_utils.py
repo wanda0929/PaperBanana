@@ -88,6 +88,75 @@ def _normalize_gemini_model_name(model_name: str) -> str:
     return model_name
 
 
+def _normalize_openai_model_name(model_name: str) -> str:
+    if not model_name:
+        return model_name
+
+    openai_endpoint = get_config_val(
+        "endpoints", "openai_endpoint", "OPENAI_BASE_URL", ""
+    )
+    if "localhost" in openai_endpoint.lower() and model_name.startswith("claude-"):
+        return model_name.replace(".", "-")
+
+    return model_name
+
+
+def _detect_provider(model_name: str) -> str:
+    """Detect the API provider from the model name."""
+    name = model_name.lower()
+    if "gemini" in name or "nanoviz" in name:
+        return "google"
+    elif "claude" in name:
+        return "openai"  # routed through VibeProxy's OpenAI-compatible API
+    elif "gpt" in name:
+        return "openai"
+    return "google"
+
+
+async def call_text_model_with_retry_async(
+    model_name,
+    contents,
+    system_prompt="",
+    temperature=1.0,
+    candidate_count=1,
+    max_output_tokens=50000,
+    max_attempts=5,
+    retry_delay=5,
+    error_context="",
+):
+    """Unified text model router: dispatches to Gemini or OpenAI based on model name."""
+    provider = _detect_provider(model_name)
+
+    if provider == "google":
+        return await call_gemini_with_retry_async(
+            model_name=model_name,
+            contents=contents,
+            config=types.GenerateContentConfig(
+                system_instruction=system_prompt,
+                temperature=temperature,
+                candidate_count=candidate_count,
+                max_output_tokens=max_output_tokens,
+            ),
+            max_attempts=max_attempts,
+            retry_delay=retry_delay,
+            error_context=error_context,
+        )
+    else:
+        return await call_openai_with_retry_async(
+            model_name=model_name,
+            contents=contents,
+            config={
+                "system_prompt": system_prompt,
+                "temperature": temperature,
+                "candidate_num": candidate_count,
+                "max_completion_tokens": max_output_tokens,
+            },
+            max_attempts=max_attempts,
+            retry_delay=retry_delay,
+            error_context=error_context,
+        )
+
+
 def _get_gemini_client():
     global gemini_client, _gemini_client_signature
 
@@ -436,6 +505,7 @@ async def call_openai_with_retry_async(
     max_completion_tokens = config["max_completion_tokens"]
     response_text_list = []
     client = _get_openai_client()
+    normalized_model_name = _normalize_openai_model_name(model_name)
 
     if client is None:
         raise RuntimeError(
@@ -455,7 +525,7 @@ async def call_openai_with_retry_async(
             openai_contents = _convert_to_openai_format(current_contents)
             # Attempt to generate the very first candidate.
             first_response = await client.chat.completions.create(
-                model=model_name,
+                model=normalized_model_name,
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": openai_contents},
@@ -493,7 +563,7 @@ async def call_openai_with_retry_async(
         valid_openai_contents = _convert_to_openai_format(current_contents)
         tasks = [
             client.chat.completions.create(
-                model=model_name,
+                model=normalized_model_name,
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": valid_openai_contents},
